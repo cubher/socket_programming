@@ -1,32 +1,30 @@
-import socket as s
-import select as sel
+import socket
+import subprocess
 
-HOST = "127.0.0.1"
-PORT = 16002
+HOST = ''
+PORT = 8877
+s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+s.bind((HOST,PORT))
+s.listen()
+conn,addr = s.accept()
+print("{} connected with back port {}".format(addr[0],addr[1]))
+conn.sendall("simple command server developed by LAHTP \n\n$ ".encode())
 
-
-def echo_server():
-    with s.socket(s.AF_INET, s.SOCK_STREAM) as server_sock:
-        host_address = (HOST, PORT)
-        server_sock.bind(host_address)
-        server_sock.listen()
-        while True:
-
-                client_sock, client_address = server_sock.accept()
-                print(f"client has conneted ({client_address})")
-                while True:
-                    data = client_sock.recv(1084).decode("utf-8")
-                    if not data :
-                        print("nothing")
-                        break
-                    print(f"Received message from client: {data}")
-                    if data.lower() == "quit":
-                        client_sock.sendall(b"Connection terminated. Goodbye!")
-                        break
-                    else :
-                        client_sock.sendall(data.encode("utf-8"))
-        
-
-if __name__ == "__main__":
-    echo_server()
-    print(f"Connection with {HOST} closed.")
+while True:
+    data = conn.recv(1024)
+    if not data:
+        break
+    else:
+        data = data.decode()
+        data =data.strip()
+        print("cmd > {}".format(data))
+        if data == "quit":
+            break
+        else:
+            proc = subprocess.Popen(data, stdout=subprocess.PIPE,shell=True,stderr=subprocess.STDOUT)
+            (out,err) = proc.communicate()
+            data = "\n" + out.decode()
+            data = data + "\r\n$"
+            conn.sendall(data.encode())
+s.close()
